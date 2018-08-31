@@ -63,4 +63,4 @@ the default width of the plot.
 
 --cw and --ch aren't yet implemented. They are on my to-do list.
 
-
+Please notice that the RScript-folder must be located under varplotlib-folder. Otherwise the python script won't be able to call the R-Scripts.
