@@ -16,6 +16,7 @@ command = 'Rscript'
 
 def main(args):
     # Open vcf and output mutation statistics like in test_data.csv
+    print_args(args)
     type = check_arguments(args)
     if type == 'table':
         read_table(args)
@@ -31,6 +32,9 @@ def main(args):
     var_n = amount_of_variants(samples, args)
     plot_gene_matrix(gene_matrix_filename, var_n, args)
     
+def print_args(args):
+    print("Running varplotlib with following inputs:")
+    print(str(args))
 
 def check_arguments(args):
     suffix = args.input.split('.')[-1]
@@ -49,6 +53,16 @@ def check_arguments(args):
         args.rename = "FALSE"
     if args.zero_variants == None:
         args.zero_variants = "FALSE"
+    if args.height == None and args.width == None:
+        args.height = "FALSE"
+        args.width = "FALSE"
+    if args.width != "FALSE":
+        try:
+            int(args.height)
+            int(args.width)
+        except (ValueError, TypeError):
+            print("Error! Custom height and width arguments must be integers! Exiting...")
+            sys.exit(1)
     return suffix
 
 def read_table(args):
@@ -148,7 +162,7 @@ def create_gene_matrix(samples, args):
                 types = []
                 for variant in sample.variants:
                     if gene == variant.gene:
-                        print(gene,sample.id)
+                        #print(gene,sample.id)
                         type = check_variant_type(variant)
                         if type not in types:
                             types.append(type)
@@ -201,7 +215,7 @@ def plot_substitution_frequencies(filename):
 
 def plot_gene_matrix(filename, var_n, args):
     path_to_sub_freq = current_path + '/RScripts/gene_matrix.R'
-    cmd = [command, path_to_sub_freq, filename, args.genelist, var_n, args.rename, args.zero_variants]
+    cmd = [command, path_to_sub_freq, filename, args.genelist, var_n, args.height, args.width, args.rename, args.zero_variants]
     subprocess.call(cmd)
 
 def prepare_base_substitutions(samples, group_names, output):
@@ -222,7 +236,7 @@ def prepare_base_substitutions(samples, group_names, output):
     return (output + "_substitutions.csv")
 
 def parse_base_substution(variant):
-    print(variant.ref, variant.alt)
+    #print(variant.ref, variant.alt)
     if (variant.ref != 'A'  and variant.ref != 'C' and variant.ref != 'G' and variant.ref != 'T') \
         or (variant.alt != 'A'  and variant.alt != 'C' and variant.alt != 'G' and variant.alt != 'T'):
         # Indel
@@ -280,6 +294,9 @@ def run():
                         help = "Script will visualize variants on the given genes by samples. \
                         If you want to group genes by pathway etc. give the gene group in the same \
                         row as the gene and separated by tab.")
+    parser.add_argument("-cw", "--custom_width", dest = "width", help = "Custom width value. \
+                        If provided, will override the approximated value.")
+    parser.add_argument("-ch", "--custom_height", dest = "height", help = "Custom height value.")
     parser.add_argument("--remove_zero_variants", dest = "zero_variants", action = 'store_const', const="TRUE")
     parser.add_argument("--rename_samples", dest = "rename", action = 'store_const', const="TRUE")
     args = parser.parse_args()

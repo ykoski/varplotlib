@@ -10,6 +10,8 @@ library(dplyr)
 library(gtable)
 library(gridExtra)
 
+'%ni%' <- Negate('%in%')
+
 rename_samples <- function(group.name, matrix) {
   c <- 1
   for (i in 1:nrow(matrix)){
@@ -25,15 +27,11 @@ inputArgs <- commandArgs(trailingOnly = TRUE)
 gene.matrix <- inputArgs[1]
 group.table <- inputArgs[2]
 var.amount <- inputArgs[3]
-rename.samples <- inputArgs[4]
-removeNA <- inputArgs[5]
+custom.height <- inputArgs[4]
+custom.width <- inputArgs[5]
+rename.samples <- inputArgs[6]
+removeNA <- inputArgs[7]
 
-# debug
-# var.mat <- read.csv("/Users/hru/python/VarPlotLib/AA_test_run_1508_gene_matrix.csv", sep=',', header=TRUE)
-# gene.groups <- read.table("/Users/hru/immunogenepanel/data/AA-presis/variant_files/AA_genes_n5.txt", sep='\t', header = FALSE)
-# n.vars <- read.csv("/Users/hru/python/VarPlotLib/AA_test_run_1508_amount_of_variants.csv", sep=',', header=TRUE)
-# rename.samples <- TRUE
-# removeNA <- TRUE
 
 var.mat <- read.csv(gene.matrix, sep=',', header = TRUE)
 # Read amount of variants per sample from var.amount
@@ -64,15 +62,17 @@ if (rename.samples == TRUE) {
 var.mat.sorted <- var.mat[order(rowSums(is.na(var.mat))), ]
 var.mat.sorted <- var.mat.sorted[,order(colSums(is.na(var.mat.sorted)), decreasing = TRUE)]
 
-# Approx height and width with amount of variables
-h <- 90 + (ncol(var.mat.sorted) - 2) * 30
-w <- 80 + (nrow(var.mat.sorted)) * 30
-
-str(var.mat.sorted)
+# Set height and width of the plot. If custom values are given use them, else approximate them
+if (custom.height != FALSE) {h <- as.integer(custom.height)} else {h <- 120 + (ncol(var.mat.sorted) - 2) * 30}
+if (custom.width != FALSE) {w <- as.integer(custom.width)} else {w <- 80 + (nrow(var.mat.sorted)) * 30}
+#str(var.mat.sorted)
 
 var.mat.melt <- melt(var.mat.sorted, id.vars = c('Sample','Group'))
 var.mat.melt$value <- as.character(var.mat.melt$value)
-var.mat.melt$value <- factor(var.mat.melt$value, levels = c("m","f","n","s","d","f;m","f;s"))
+
+var.types <- c("m","f","n","s","d",NA)
+var.mat.melt$value[var.mat.melt$value %ni% var.types] <- "mul"
+var.mat.melt$value <- factor(var.mat.melt$value, levels = c("m","f","n","s","d","mul"))
 
 # Plot variant matrix
 xlims <- c(0,length(var.mat$Sample))
@@ -82,8 +82,9 @@ g <- ggplot(var.mat.melt, aes(Sample, variable)) + geom_tile(aes(fill = value), 
           g <- g + facet_grid( . ~ Group, scales = "free", space = "free", switch = "y")
       }
 g <- g + scale_fill_manual(name="Variant",
-                           labels=c("Missense","Frameshift","Nonsense","Splicing_site","Nonframeshift_deletion","Missense_and_frameshift","Frameshift_and_splicing_site"),
-                           values = c("#ABDDA4", "#D53E4F", "#FEE08B", "#3288BD", "#F46D43", "#5E4FA2", "#8C510A"), 
+                           breaks=c("m","f","n","s","d","mul"),
+                           labels=c("Missense","Frameshift","Nonsense","Splicing_site","Nonframeshift_deletion","Multiple"),
+                           values = c("#ABDDA4", "#D53E4F", "#FEE08B", "#3288BD", "#F46D43", "#5E4FA2"),#, "#8C510A"), 
                            drop = FALSE) +
   scale_x_discrete(position = "top") +
   theme(axis.text.x = element_text(angle = -90, hjust = 1),
