@@ -77,20 +77,30 @@ var.mat.melt$value <- factor(var.mat.melt$value, levels = c("m","f","n","s","d",
 # Plot variant matrix
 xlims <- c(0,length(var.mat$Sample))
 g <- ggplot(var.mat.melt, aes(Sample, variable)) + geom_tile(aes(fill = value), size = 0.2, color = "white")
-      if (gg == TRUE) {g <- g + facet_grid(gene.groups$V2[variable] ~ Group, scales = "free", space = "free", switch = "y")
+      if (gg == TRUE) {g <- g + facet_grid(gene.groups$V2[variable] ~ ., scales = "free", space = "free", switch = "y")
       } else {
           g <- g + facet_grid( . ~ Group, scales = "free", space = "free", switch = "y")
       }
+
 g <- g + scale_fill_manual(name="Variant",
                            breaks=c("m","f","n","s","d","mul"),
                            labels=c("Missense","Frameshift","Nonsense","Splicing_site","Nonframeshift_deletion","Multiple"),
                            values = c("#ABDDA4", "#D53E4F", "#FEE08B", "#3288BD", "#F46D43", "#5E4FA2"),#, "#8C510A"), 
                            drop = FALSE) +
-  scale_x_discrete(position = "top") +
-  theme(axis.text.x = element_text(angle = -90, hjust = 1),
-        plot.title = element_text(hjust = 0.5),
-        panel.grid.major = element_blank()) +
-  labs(y='')
+  scale_x_discrete(position = "top")
+
+if (length(is.na(var.mat.melt$Group)) == length(var.mat.melt$Group)) 
+  {g <- g + theme(strip.background = element_blank(),
+                  strip.text.x = element_blank(),
+                  axis.text.x = element_text(angle = -90, hjust = 1),
+                  plot.title = element_text(hjust = 0.5),
+                  panel.grid.major = element_blank()) + labs(y='')
+  } else {
+    g <- g + theme(axis.text.x = element_text(angle = -90, hjust = 1),
+              plot.title = element_text(hjust = 0.5),
+              panel.grid.major = element_blank()) +labs(y='')
+    }
+
   #coord_equal()
 
 #n.vars$Amount_of_variants <- factor(n.vars$Amount_of_variants)

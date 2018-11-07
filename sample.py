@@ -1,7 +1,7 @@
 
 class Sample():
 
-    def __init__(self, id, variants = None, group = None):
+    def __init__(self, id, variants = None, group = None, idx = None):
         self.id = id
         if variants == None:
             self.variants = []

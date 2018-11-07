@@ -10,7 +10,9 @@ from variant import Variant
 from sample import Sample
 
 accepted_types = ["nonsynonymous_SNV", "frameshift_deletion", "frameshift_insertion"
-                  "nonframeshift_deletion", "stopgain", "splicing"]
+                  "nonframeshift_deletion", "stopgain", "splicing",
+                  "nonsynonymous SNV", "frameshift deletion", "frameshift insertion"
+                  "nonframeshift deletion", "stopgain", "splicing"]
 
 command = 'Rscript'
 
@@ -19,13 +21,15 @@ def main(args):
     print_args(args)
     type = check_arguments(args)
     if type == 'table':
-        read_table(args)
+        samples, group_names = read_table(args)
+        temp = []
+        for k in samples.keys():
+            temp.append(samples[k])
+        samples = temp
     elif type == 'list':
         samples, group_names = read_list(args)
-    #print(samples)
     global current_path 
     current_path = os.path.dirname(os.path.realpath(__file__))
-    print(current_path)
     substitutions_csv = prepare_base_substitutions(samples, group_names, args.output)
     plot_substitution_frequencies(substitutions_csv)
     gene_matrix_filename = create_gene_matrix(samples, args)
@@ -66,7 +70,98 @@ def check_arguments(args):
     return suffix
 
 def read_table(args):
-    pass
+    samples = {}
+    h_index, h_sample, h_group = group_file_indices(args.groups)
+    group_names = []
+
+    with open(args.groups) as sample_names:
+        sample_names.readline()
+        # Create a dictionary for samples
+        for line in sample_names:
+            line = line.split('\t')
+            new_sample = Sample(line[h_sample])
+            if h_index != None:
+                new_sample.idx = int(line[h_index])
+            if h_group != None:
+                group = line[h_group]
+                new_sample.group = group
+                if group not in group_names:
+                    group_names.append(group)
+            samples[line[h_sample]] = new_sample
+    
+    with open(args.input) as input_table:
+        firstline = input_table.readline()
+        idx_list = table_indices(firstline)
+        if h_index == None:
+            # Get index values for samples using the sample
+            # IDs and header of the table-file
+
+            # To be implemented later
+            pass
+        for line in input_table:
+            line = line.split('\t')
+
+            for sample_id in samples.keys():
+                idx = samples[sample_id].idx
+                if line[idx] == "1":
+                    new_var = variant_from_index_list(idx_list, line)
+                    samples[sample_id].variants.append(new_var)
+    return samples, group_names
+
+
+def variant_from_index_list(idx_list, line):
+    # Inputs: list of indexes of the line
+    #   One line of the input file as a list
+    chrom = line[idx_list[0]]
+    start = line[idx_list[1]]
+    end = line[idx_list[2]]
+    ref = line[idx_list[3]]
+    alt = line[idx_list[4]]
+    gene = line[idx_list[5]]
+    var_type = line[idx_list[6]]
+    return Variant(chrom, start, end, ref, alt, gene, var_type, None)
+
+def table_indices(line):
+    # List of index values, where chr = 0, start = 1, end = 2,
+    # ref = 3, alt = 4, gene = 5, type = 6
+    idx_list = 7*[None]
+    line = line.split("\t")
+    for i in range(0,len(line)):
+        if str(line[i]).lower() == "chr":
+            idx_list[0] = i
+        elif str(line[i]).lower() == "start":
+            idx_list[1] = i
+        elif str(line[i]).lower() == "end":
+            idx_list[2] = i
+        elif str(line[i]).lower() == "ref":
+            idx_list[3] = i
+        elif str(line[i]).lower() == "alt":
+            idx_list[4] = i
+        elif str(line[i]).lower() == "gene.refgene":
+            idx_list[5] = i       
+        elif str(line[i]).lower() == "exonicfunc.refgene":
+            idx_list[6] = i
+    return idx_list
+
+def group_file_indices(fname):
+    h_index, h_sample, h_group = None, None, None
+    with open(fname) as input_table:
+        # Read first line of the groups-file to get index values of
+        # index, sample names and sample groups
+        first_line = input_table.readline().split('\t')
+        for i in range(0,len(first_line)):
+            if first_line[i] == "index":
+                h_index = i
+            elif first_line[i] == "group":
+                h_group = i
+            elif first_line[i] == "sample":
+                h_sample = i
+    if h_sample != None:
+        return h_index, h_sample, h_group
+    else:
+        print("Error! Group file must include sample names. Exiting...")
+        sys.exit(1)
+
 
 def read_list(args):
     # Dict where each key is a group in the vcf list
@@ -79,7 +174,6 @@ def read_list(args):
                 line = line.split('\t')
                 file_name = line[0]
                 sample_name = line[1]
-                # sample_names.append(sample_name)
                 variants = []
                 group = line[2].strip()
                 if group not in group_names:
@@ -162,7 +256,8 @@ def create_gene_matrix(samples, args):
                 types = []
                 for variant in sample.variants:
                     if gene == variant.gene:
-                        #print(gene,sample.id)
+                        print(gene,sample.id)
+                        print(variant.type)
                         type = check_variant_type(variant)
                         if type not in types:
                             types.append(type)
@@ -178,6 +273,7 @@ def create_gene_matrix(samples, args):
 def check_variant_type(var):
     type = var.type
     # Same as missense
+    type = type.replace(" ","_")
     if type == "nonsynonymous_SNV":
         return "m"
     # Frameshift
@@ -289,7 +385,8 @@ def run():
                         help = "Filename base for plot and other output files.")
     parser.add_argument("-g","--groups", dest = "groups", 
                         help = "If table is provided then group file is needed. "
-                        "Tab-separated file which has sample and group.")
+                        "Tab-separated file which has sample name (or part of it)" 
+                        "or sample index and group if samples are grouped.")
     parser.add_argument("-gl", "--genelist", dest = "genelist",
                         help = "Script will visualize variants on the given genes by samples. \
                         If you want to group genes by pathway etc. give the gene group in the same \
