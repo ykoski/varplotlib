@@ -91,6 +91,7 @@ def read_table(args):
     
     with open(args.input) as input_table:
         firstline = input_table.readline()
+        firstline = firstline.split('\t')
         idx_list = table_indices(firstline)
         if h_index == None:
             # Get index values for samples using the sample
@@ -108,6 +109,18 @@ def read_table(args):
                     samples[sample_id].variants.append(new_var)
     return samples, group_names
 
+def read_tfile(fname):
+    variants = []
+    with open(fname,'r') as ifile:
+        fline = ifile.readline().split(',')
+        idx_list = table_indices(fline)
+        print(idx_list)
+        for line in ifile:
+            line = line.split(',')
+            new_variant = variant_from_index_list(idx_list, line)
+            if new_variant.type in accepted_types:
+                variants.append(new_variant)
+    return variants
 
 def variant_from_index_list(idx_list, line):
     # Inputs: list of indexes of the line
@@ -125,21 +138,20 @@ def table_indices(line):
     # List of index values, where chr = 0, start = 1, end = 2,
     # ref = 3, alt = 4, gene = 5, type = 6
     idx_list = 7*[None]
-    line = line.split("\t")
     for i in range(0,len(line)):
-        if str(line[i]).lower() == "chr":
+        if str(line[i]).lower() == "chr" and idx_list[0] == None:
             idx_list[0] = i
-        elif str(line[i]).lower() == "start":
+        elif str(line[i]).lower() == "start" and idx_list[1] == None:
             idx_list[1] = i
-        elif str(line[i]).lower() == "end":
+        elif str(line[i]).lower() == "end" and idx_list[2] == None:
             idx_list[2] = i
-        elif str(line[i]).lower() == "ref":
+        elif str(line[i]).lower() == "ref" and idx_list[3] == None:
             idx_list[3] = i
-        elif str(line[i]).lower() == "alt":
+        elif str(line[i]).lower() == "alt" and idx_list[4] == None:
             idx_list[4] = i
-        elif str(line[i]).lower() == "gene.refgene":
+        elif str(line[i]).lower() == "gene.refgene" and idx_list[5] == None:
             idx_list[5] = i       
-        elif str(line[i]).lower() == "exonicfunc.refgene":
+        elif str(line[i]).lower() == "exonicfunc.refgene" and idx_list[6] == None:
             idx_list[6] = i
     return idx_list
 
@@ -178,19 +190,28 @@ def read_list(args):
                 group = line[2].strip()
                 if group not in group_names:
                     group_names.append(group)
-                with open(file_name, 'r') as vcf:
-                    for vline in vcf:
-                        if vline[0] != '#':
-                            # Input split line to parse_variants
-                            site_variants = parse_variants(vline.split('\t'))
-                            for variant in site_variants:
-                                if variant.type in accepted_types:
-                                    variants.append(variant)
+                if file_name.split('.')[-1] == "vcf":
+                    variants = read_vcf(file_name)
+                else:
+                    variants = read_tfile(file_name)
+                    print("check")
                 new_sample = Sample(sample_name, variants, group)
                 samples.append(new_sample)
             except IndexError:
                 print("Error! Badly formatted input list.")
     return samples, group_names
+
+def read_vcf(file_name):
+    variants = []
+    with open(file_name, 'r') as vcf:
+        for vline in vcf:
+            if vline[0] != '#':
+                # Input split line to parse_variants
+                site_variants = parse_variants(vline.split('\t'))
+                for variant in site_variants:
+                    if variant.type in accepted_types:
+                        variants.append(variant)
+    return variants
 
 def parse_variants(line):
     # Parses variant information from annovar-annotated vcf-file.
