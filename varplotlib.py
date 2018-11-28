@@ -109,14 +109,13 @@ def read_table(args):
                     samples[sample_id].variants.append(new_var)
     return samples, group_names
 
-def read_tfile(fname):
+def read_tfile(fname, sep):
     variants = []
     with open(fname,'r') as ifile:
-        fline = ifile.readline().split(',')
+        fline = ifile.readline().split(sep)
         idx_list = table_indices(fline)
-        print(idx_list)
         for line in ifile:
-            line = line.split(',')
+            line = line.split(sep)
             new_variant = variant_from_index_list(idx_list, line)
             if new_variant.type in accepted_types:
                 variants.append(new_variant)
@@ -180,6 +179,7 @@ def read_list(args):
     # Value is a list of Mutation-objects
     samples = []
     group_names = []
+    sc = False
     with open(args.input,'r') as list_of_files:
         for line in list_of_files:
             try:
@@ -193,8 +193,10 @@ def read_list(args):
                 if file_name.split('.')[-1] == "vcf":
                     variants = read_vcf(file_name)
                 else:
-                    variants = read_tfile(file_name)
-                    print("check")
+                    if sc == False:
+                        args.sep = check_sep(args)
+                        sc = True
+                    variants = read_tfile(file_name, args.sep)
                 new_sample = Sample(sample_name, variants, group)
                 samples.append(new_sample)
             except IndexError:
@@ -277,8 +279,6 @@ def create_gene_matrix(samples, args):
                 types = []
                 for variant in sample.variants:
                     if gene == variant.gene:
-                        print(gene,sample.id)
-                        print(variant.type)
                         type = check_variant_type(variant)
                         if type not in types:
                             types.append(type)
@@ -324,6 +324,15 @@ def flatten(statlist):
         if isinstance(s,list): flatlist.extend(flatten(s))
         else: flatlist.append(s)
     return flatlist
+
+def check_sep(args):
+    if args.sep == None:
+        print("Error! No separator provided. Exiting...")
+        sys.exit(1)
+    elif args.sep == "tab":
+        return '\t'
+    else:
+        return args.sep
 
 def plot_substitution_frequencies(filename):
     path_to_sub_freq = current_path + '/RScripts/substitution_frequencies.R'
@@ -412,6 +421,8 @@ def run():
                         help = "Script will visualize variants on the given genes by samples. \
                         If you want to group genes by pathway etc. give the gene group in the same \
                         row as the gene and separated by tab.")
+    parser.add_argument("-sep", "--separator", dest = "sep",
+                        help = "The separator used in the input files.")
     parser.add_argument("-cw", "--custom_width", dest = "width", help = "Custom width value. \
                         If provided, will override the approximated value.")
     parser.add_argument("-ch", "--custom_height", dest = "height", help = "Custom height value.")
