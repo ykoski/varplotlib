@@ -9,10 +9,8 @@ from collections import Counter
 from variant import Variant
 from sample import Sample
 
-accepted_types = ["nonsynonymous_SNV", "frameshift_deletion", "frameshift_insertion"
-                  "nonframeshift_deletion", "stopgain", "splicing",
-                  "nonsynonymous SNV", "frameshift deletion", "frameshift insertion"
-                  "nonframeshift deletion", "stopgain", "splicing"]
+accepted_types = ["nonsynonymous_SNV", "frameshift_deletion", "frameshift_insertion",
+                  "nonframeshift_deletion", "stopgain", "splicing"]
 
 command = 'Rscript'
 
@@ -130,7 +128,8 @@ def variant_from_index_list(idx_list, line):
     ref = line[idx_list[3]]
     alt = line[idx_list[4]]
     gene = line[idx_list[5]]
-    var_type = line[idx_list[6]]
+    var_type = line[idx_list[6]].replace(" ","_")
+    var_type = var_type.strip()
     return Variant(chrom, start, end, ref, alt, gene, var_type, None)
 
 def table_indices(line):
